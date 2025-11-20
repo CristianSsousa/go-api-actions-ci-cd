@@ -8,11 +8,12 @@ env:
     PROJECT_ID: usenglish
     REGION: us-central1
     SERVICE_NAME: go-api
-    IMAGE: "gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
 
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
+        env:
+            IMAGE: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
 
             - name: Build and push image to Container Registry
               run: |
-                  gcloud builds submit --tag "${IMAGE}"
+                  gcloud builds submit --tag "${{ env.IMAGE }}"
 
             - name: Deploy to Cloud Run
               uses: google-github-actions/deploy-cloudrun@v1
