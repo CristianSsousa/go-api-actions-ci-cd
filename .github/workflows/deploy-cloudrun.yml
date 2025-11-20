@@ -11,40 +11,15 @@ env:
     KEEP_IMAGES: 1 # Número de imagens recentes para manter (1 = apenas a última)
 
 jobs:
-    #build-and-deploy:
-    #    runs-on: ubuntu-latest
-    #    permissions:
-    #        contents: read
-    #        id-token: write
-    #    steps:
-    #        - name: Checkout code
-    #          uses: actions/checkout@v4
-
-    #        - name: Authenticate to GCP (OIDC)
-    #          uses: google-github-actions/auth@v2
-    #          with:
-    #              workload_identity_provider: "projects/1037272987699/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-    #              service_account: "github-actions-sa@usenglish.iam.gserviceaccount.com"
-
-    #        - name: Setup gcloud SDK
-    #          uses: google-github-actions/setup-gcloud@v2
-
-    #        - name: Deploy to Cloud Run
-    #          uses: google-github-actions/deploy-cloudrun@v2
-    #          with:
-    #              service: ${{ env.SERVICE_NAME }}
-    #              source: .
-    #              region: ${{ env.REGION }}
-    #              allow-unauthenticated: true
-    #              ingress: ${{ env.INGRESS }}
-
-    clean-up-old-images:
-        #needs: build-and-deploy
+    build-and-deploy:
         runs-on: ubuntu-latest
         permissions:
             contents: read
             id-token: write
         steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
             - name: Authenticate to GCP (OIDC)
               uses: google-github-actions/auth@v2
               with:
@@ -54,132 +29,11 @@ jobs:
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
 
-            - name: Configure gcloud and verify access
-              run: |
-                  gcloud config set project usenglish
-                  echo "=== Verificando autenticação ==="
-                  gcloud auth list
-                  echo ""
-                  echo "=== Verificando acesso ao Artifact Registry ==="
-                  gcloud artifacts repositories list --location=us-central1 || echo "⚠️ Erro ao listar repositórios"
-                  echo ""
-                  echo "=== Testando permissões ==="
-                  TEST_IMAGE="us-central1-docker.pkg.dev/usenglish/cloud-run-source-deploy/go-test-api"
-                  gcloud artifacts docker images list "$TEST_IMAGE" --limit=1 || echo "⚠️ Erro ao listar imagens"
-
-            - name: Cleanup Old Images
-              run: |
-                  # Artifact Registry path: LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE
-                  REPOSITORY="${{ env.REGION }}-docker.pkg.dev/usenglish/cloud-run-source-deploy"
-                  IMAGE_NAME="$REPOSITORY/${{ env.SERVICE_NAME }}"
-                  KEEP=${{ env.KEEP_IMAGES }}
-
-                  echo "Limpando imagens antigas do Artifact Registry..."
-                  echo "Repositório: $REPOSITORY"
-                  echo "Imagem: $IMAGE_NAME"
-                  echo "Mantendo as últimas $KEEP imagem(s)"
-
-                  # Verifica permissões da service account no projeto
-                  echo ""
-                  echo "Verificando permissões da service account no projeto..."
-                  ROLES=$(gcloud projects get-iam-policy usenglish \
-                    --flatten="bindings[].members" \
-                    --filter="bindings.members:serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com" \
-                    --format="value(bindings.role)" 2>/dev/null || echo "")
-
-                  if echo "$ROLES" | grep -q "artifactregistry.writer"; then
-                      echo "✓ Role 'roles/artifactregistry.writer' encontrada no projeto"
-                  else
-                      echo "⚠️  Role 'roles/artifactregistry.writer' NÃO encontrada no projeto"
-                      echo "   Permissões encontradas:"
-                      echo "$ROLES" | sed 's/^/   - /' || echo "   (nenhuma)"
-                  fi
-
-                  # Verifica permissões da service account
-                  echo ""
-                  echo "Verificando permissões da service account..."
-                  gcloud projects get-iam-policy usenglish \
-                    --flatten="bindings[].members" \
-                    --filter="bindings.members:serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com" \
-                    --format="table(bindings.role)" || echo "Erro ao verificar permissões"
-
-                  # Lista todas as imagens ordenadas por data de criação (mais recente primeiro)
-                  # Formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
-                  # Constrói o URI completo com package + version (digest)
-                  IMAGES=$(gcloud artifacts docker images list "$IMAGE_NAME" \
-                    --sort-by=~CREATE_TIME \
-                    --format='csv[no-heading](package,version)' \
-                    --limit=999 2>/dev/null | awk -F',' '{print $1"@"$2}' || echo "")
-
-                  if [ -z "$IMAGES" ]; then
-                      echo "Nenhuma imagem encontrada ou erro ao listar."
-                      exit 0
-                  fi
-
-                  # Conta quantas imagens existem
-                  TOTAL=$(echo "$IMAGES" | grep -v '^$' | wc -l | tr -d ' ')
-
-                  if [ "$TOTAL" -le "$KEEP" ]; then
-                      echo "Apenas $TOTAL imagem(s) encontrada(s), nenhuma limpeza necessária."
-                      exit 0
-                  fi
-
-                  # Calcula quantas deletar
-                  TO_DELETE=$((TOTAL - KEEP))
-                  echo "Encontradas $TOTAL imagens. Mantendo as últimas $KEEP, deletando $TO_DELETE..."
-
-                  # Pega as imagens mais antigas (pula as KEEP primeiras)
-                  OLD_IMAGES=$(echo "$IMAGES" | tail -n +$((KEEP + 1)))
-
-                  # Deleta as imagens antigas
-                  DELETED=0
-                  FAILED=0
-                  for IMAGE_URI in $OLD_IMAGES; do
-                      if [ -n "$IMAGE_URI" ]; then
-                          echo "Deletando imagem antiga: $IMAGE_URI"
-                          
-                          # Para Artifact Registry, o comando precisa do formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
-                          # Usa --quiet para evitar prompt interativo
-                          set +e  # Não falhar imediatamente em caso de erro
-                          OUTPUT=$(gcloud artifacts docker images delete "$IMAGE_URI" --quiet 2>&1)
-                          EXIT_CODE=$?
-                          set -e  # Reativar fail on error
-                          
-                          if [ $EXIT_CODE -eq 0 ]; then
-                              DELETED=$((DELETED + 1))
-                              echo "✓ Imagem deletada com sucesso"
-                          else
-                              FAILED=$((FAILED + 1))
-                              echo "✗ Erro ao deletar (código: $EXIT_CODE)"
-                              echo "  Mensagem de erro:"
-                              echo "$OUTPUT" | sed 's/^/    /'
-                              
-                              # Verifica se é erro de permissão
-                              if echo "$OUTPUT" | grep -qiE "permission|denied|forbidden|403"; then
-                                  echo ""
-                                  echo "  ⚠️  ERRO DE PERMISSÃO DETECTADO!"
-                                  echo ""
-                                  echo "  Solução 1 - Adicionar no nível do projeto:"
-                                  echo "    gcloud projects add-iam-policy-binding usenglish \\"
-                                  echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
-                                  echo "      --role='roles/artifactregistry.writer'"
-                                  echo ""
-                                  echo "  Solução 2 - Adicionar no nível do repositório (se Solução 1 não funcionar):"
-                                  echo "    gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \\"
-                                  echo "      --location=us-central1 \\"
-                                  echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
-                                  echo "      --role='roles/artifactregistry.writer'"
-                                  echo ""
-                                  echo "  Nota: Pode levar alguns minutos para as permissões serem propagadas."
-                              fi
-                          fi
-                      fi
-                  done
-
-                  # Se houve falhas mas não é erro crítico, não falha o workflow
-                  if [ $FAILED -gt 0 ] && [ $DELETED -eq 0 ]; then
-                      echo ""
-                      echo "⚠️  Nenhuma imagem foi deletada. Verifique as permissões acima."
-                  fi
-
-                  echo "Limpeza concluída! $DELETED imagem(s) deletada(s)."
+            - name: Deploy to Cloud Run
+              uses: google-github-actions/deploy-cloudrun@v2
+              with:
+                  service: ${{ env.SERVICE_NAME }}
+                  source: .
+                  region: ${{ env.REGION }}
+                  allow-unauthenticated: true
+                  ingress: ${{ env.INGRESS }}
