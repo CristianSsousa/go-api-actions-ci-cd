@@ -21,18 +21,32 @@ jobs:
             - name: Authenticate to GCP (OIDC)
               uses: google-github-actions/auth@v2
               with:
-                  workload_identity_provider: "projects/1037272987699/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-                  service_account: "github-actions-sa@usenglish.iam.gserviceaccount.com"
+                  workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+                  service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
               with:
                   project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-            - name: Build and push image to Container Registry
+            - name: Configure Docker for GCR
+              run: |
+                  gcloud auth configure-docker gcr.io --quiet
+
+            - name: Build Docker image
               run: |
                   IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-                  gcloud builds submit --tag "${IMAGE}"
+                  IMAGE_LATEST="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest"
+                  echo "Building image: ${IMAGE}"
+                  docker build -t "${IMAGE}" -t "${IMAGE_LATEST}" .
+
+            - name: Push Docker image to GCR
+              run: |
+                  IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+                  IMAGE_LATEST="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:latest"
+                  echo "Pushing image: ${IMAGE}"
+                  docker push "${IMAGE}"
+                  docker push "${IMAGE_LATEST}"
 
             - name: Deploy to Cloud Run
               uses: google-github-actions/deploy-cloudrun@v1
