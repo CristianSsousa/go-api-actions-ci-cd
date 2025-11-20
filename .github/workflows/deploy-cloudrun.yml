@@ -27,13 +27,8 @@ jobs:
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
 
-            - name: Build and push image to Container Registry
-              run: |
-                  IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-                  gcloud builds submit --tag "${IMAGE}" --no-stream
-
             - name: Deploy to Cloud Run
-              uses: google-github-actions/deploy-cloudrun@v1
+              uses: google-github-actions/deploy-cloudrun@v2
               with:
                   service: ${{ env.SERVICE_NAME }}
                   image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
