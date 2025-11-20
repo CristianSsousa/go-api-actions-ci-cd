@@ -54,6 +54,19 @@ jobs:
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
 
+            - name: Configure gcloud and verify access
+              run: |
+                  gcloud config set project usenglish
+                  echo "=== Verificando autenticação ==="
+                  gcloud auth list
+                  echo ""
+                  echo "=== Verificando acesso ao Artifact Registry ==="
+                  gcloud artifacts repositories list --location=us-central1 || echo "⚠️ Erro ao listar repositórios"
+                  echo ""
+                  echo "=== Testando permissões ==="
+                  TEST_IMAGE="us-central1-docker.pkg.dev/usenglish/cloud-run-source-deploy/go-test-api"
+                  gcloud artifacts docker images list "$TEST_IMAGE" --limit=1 || echo "⚠️ Erro ao listar imagens"
+
             - name: Cleanup Old Images
               run: |
                   # Artifact Registry path: LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE
