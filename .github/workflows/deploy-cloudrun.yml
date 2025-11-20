@@ -68,10 +68,11 @@ jobs:
 
                   # Lista todas as imagens ordenadas por data de criação (mais recente primeiro)
                   # Formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
+                  # Constrói o URI completo com package + version (digest)
                   IMAGES=$(gcloud artifacts docker images list "$IMAGE_NAME" \
                     --sort-by=~CREATE_TIME \
-                    --format='value(package)' \
-                    --limit=999 2>/dev/null || echo "")
+                    --format='csv[no-heading](package,version)' \
+                    --limit=999 2>/dev/null | awk -F',' '{print $1"@"$2}' || echo "")
 
                   if [ -z "$IMAGES" ]; then
                       echo "Nenhuma imagem encontrada ou erro ao listar."
@@ -95,12 +96,15 @@ jobs:
 
                   # Deleta as imagens antigas
                   DELETED=0
-                  for IMAGE in $OLD_IMAGES; do
-                      if [ -n "$IMAGE" ]; then
-                          echo "Deletando imagem antiga: $IMAGE"
-                          # Para Artifact Registry, usa gcloud artifacts
-                          if gcloud artifacts docker images delete "$IMAGE" --quiet 2>/dev/null; then
+                  for IMAGE_URI in $OLD_IMAGES; do
+                      if [ -n "$IMAGE_URI" ]; then
+                          echo "Deletando imagem antiga: $IMAGE_URI"
+                          # Para Artifact Registry, precisa usar o formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
+                          # O URI já vem no formato correto
+                          if gcloud artifacts docker images delete "$IMAGE_URI" --quiet 2>/dev/null; then
                               DELETED=$((DELETED + 1))
+                          else
+                              echo "Erro ao deletar: $IMAGE_URI"
                           fi
                       fi
                   done
