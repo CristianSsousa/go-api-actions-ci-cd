@@ -30,7 +30,7 @@ jobs:
             - name: Build and push image to Container Registry
               run: |
                   IMAGE="gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
-                  gcloud builds submit --tag "${IMAGE}"
+                  gcloud builds submit --tag "${IMAGE}" --no-stream-logs
 
             - name: Deploy to Cloud Run
               uses: google-github-actions/deploy-cloudrun@v1
