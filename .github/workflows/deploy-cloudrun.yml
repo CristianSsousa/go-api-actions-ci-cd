@@ -8,7 +8,6 @@ env:
     REGION: us-central1
     SERVICE_NAME: go-api-actions-ci-cd
     INGRESS: all
-    KEEP_IMAGES: 1
 
 jobs:
     build-and-deploy:
