@@ -66,6 +66,30 @@ jobs:
                   echo "Imagem: $IMAGE_NAME"
                   echo "Mantendo as últimas $KEEP imagem(s)"
 
+                  # Verifica permissões da service account no projeto
+                  echo ""
+                  echo "Verificando permissões da service account no projeto..."
+                  ROLES=$(gcloud projects get-iam-policy usenglish \
+                    --flatten="bindings[].members" \
+                    --filter="bindings.members:serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com" \
+                    --format="value(bindings.role)" 2>/dev/null || echo "")
+
+                  if echo "$ROLES" | grep -q "artifactregistry.writer"; then
+                      echo "✓ Role 'roles/artifactregistry.writer' encontrada no projeto"
+                  else
+                      echo "⚠️  Role 'roles/artifactregistry.writer' NÃO encontrada no projeto"
+                      echo "   Permissões encontradas:"
+                      echo "$ROLES" | sed 's/^/   - /' || echo "   (nenhuma)"
+                  fi
+
+                  # Verifica permissões da service account
+                  echo ""
+                  echo "Verificando permissões da service account..."
+                  gcloud projects get-iam-policy usenglish \
+                    --flatten="bindings[].members" \
+                    --filter="bindings.members:serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com" \
+                    --format="table(bindings.role)" || echo "Erro ao verificar permissões"
+
                   # Lista todas as imagens ordenadas por data de criação (mais recente primeiro)
                   # Formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
                   # Constrói o URI completo com package + version (digest)
@@ -121,11 +145,19 @@ jobs:
                               if echo "$OUTPUT" | grep -qiE "permission|denied|forbidden|403"; then
                                   echo ""
                                   echo "  ⚠️  ERRO DE PERMISSÃO DETECTADO!"
-                                  echo "  A service account precisa da role: roles/artifactregistry.writer"
-                                  echo "  Execute:"
+                                  echo ""
+                                  echo "  Solução 1 - Adicionar no nível do projeto:"
                                   echo "    gcloud projects add-iam-policy-binding usenglish \\"
                                   echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
                                   echo "      --role='roles/artifactregistry.writer'"
+                                  echo ""
+                                  echo "  Solução 2 - Adicionar no nível do repositório (se Solução 1 não funcionar):"
+                                  echo "    gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \\"
+                                  echo "      --location=us-central1 \\"
+                                  echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
+                                  echo "      --role='roles/artifactregistry.writer'"
+                                  echo ""
+                                  echo "  Nota: Pode levar alguns minutos para as permissões serem propagadas."
                               fi
                           fi
                       fi
