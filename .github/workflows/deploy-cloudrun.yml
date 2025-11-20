@@ -110,18 +110,34 @@ jobs:
                               echo "✓ Imagem deletada com sucesso"
                           else
                               echo "✗ Erro ao deletar (código: $EXIT_CODE)"
-                              echo "  Mensagem: $OUTPUT"
+                              echo "  Mensagem de erro completa:"
+                              echo "$OUTPUT" | sed 's/^/    /'
+                              
+                              # Verifica se é erro de permissão
+                              if echo "$OUTPUT" | grep -qi "permission\|denied\|forbidden"; then
+                                  echo ""
+                                  echo "  ⚠️  ERRO DE PERMISSÃO DETECTADO!"
+                                  echo "  A service account precisa da role: roles/artifactregistry.writer"
+                                  echo "  Execute:"
+                                  echo "    gcloud projects add-iam-policy-binding usenglish \\"
+                                  echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
+                                  echo "      --role='roles/artifactregistry.writer'"
+                              fi
+                              
                               # Tenta método alternativo: usar apenas o digest com o nome base
                               DIGEST=$(echo "$IMAGE_URI" | grep -o 'sha256:[a-f0-9]*' || echo "")
                               if [ -n "$DIGEST" ]; then
                                   ALT_URI="$IMAGE_NAME@$DIGEST"
+                                  echo ""
                                   echo "  Tentando método alternativo: $ALT_URI"
                                   ALT_OUTPUT=$(gcloud artifacts docker images delete "$ALT_URI" --quiet 2>&1)
-                                  if [ $? -eq 0 ]; then
+                                  ALT_EXIT=$?
+                                  if [ $ALT_EXIT -eq 0 ]; then
                                       DELETED=$((DELETED + 1))
                                       echo "  ✓ Imagem deletada usando método alternativo"
                                   else
-                                      echo "  ✗ Método alternativo falhou: $ALT_OUTPUT"
+                                      echo "  ✗ Método alternativo falhou (código: $ALT_EXIT)"
+                                      echo "  Mensagem: $ALT_OUTPUT" | sed 's/^/    /'
                                   fi
                               fi
                           fi
