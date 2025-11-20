@@ -20,9 +20,23 @@ jobs:
 
             - name: Validate secrets
               run: |
-                  echo "Setting project to: ${{ secrets.GCP_PROJECT_ID }}"
-                  echo "Workload identity provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
-                  echo "Service account: ${{ secrets.GCP_SERVICE_ACCOUNT }}"
+                  PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+                  PROVIDER="${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
+                  SERVICE_ACCOUNT="${{ secrets.GCP_SERVICE_ACCOUNT }}"
+
+                  if [ -z "$PROJECT_ID" ]; then
+                      echo "Error: GCP_PROJECT_ID secret is not set"
+                      exit 1
+                  fi
+                  if [ -z "$PROVIDER" ]; then
+                      echo "Error: GCP_WORKLOAD_IDENTITY_PROVIDER secret is not set"
+                      exit 1
+                  fi
+                  if [ -z "$SERVICE_ACCOUNT" ]; then
+                      echo "Error: GCP_SERVICE_ACCOUNT secret is not set"
+                      exit 1
+                  fi
+                  echo "✓ All required secrets are configured"
 
             - name: Authenticate to GCP (OIDC)
               uses: google-github-actions/auth@v2
