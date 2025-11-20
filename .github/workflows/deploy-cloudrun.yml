@@ -7,6 +7,7 @@ on:
 env:
     REGION: us-central1
     SERVICE_NAME: go-test-api
+    INGRESS: all
 
 jobs:
     build-and-deploy:
@@ -34,3 +35,4 @@ jobs:
                   source: .
                   region: ${{ env.REGION }}
                   allow-unauthenticated: true
+                  ingress: ${{ env.INGRESS }}
