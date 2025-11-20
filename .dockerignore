@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.github
+
+# Binários
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+api
+
+# Testes
+*_test.go
+*.test
+
+# Documentação
+*.md
+DEPLOY.md
+README.md
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Arquivos temporários
+tmp/
+temp/
+

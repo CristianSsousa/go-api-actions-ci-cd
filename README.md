@@ -132,7 +132,24 @@ Todas as respostas seguem o padrão:
 
 ## 🚢 CI/CD
 
-O projeto inclui GitHub Actions para CI/CD automatizado. Veja `.github/workflows/` para mais detalhes.
+O projeto inclui GitHub Actions para CI/CD automatizado com deploy no Google Cloud Run.
+
+### Workflows Disponíveis
+
+- **`deploy-gcp-cloud-run.yml`** - Deploy usando Google Container Registry (GCR)
+- **`deploy-gcp-cloud-run-artifact-registry.yml`** - Deploy usando Artifact Registry (recomendado)
+
+### Configuração
+
+Para configurar o deploy automático, siga as instruções detalhadas em [DEPLOY.md](./DEPLOY.md).
+
+**Resumo rápido:**
+1. Configure um projeto no GCP
+2. Crie uma Service Account com as permissões necessárias
+3. Adicione os secrets `GCP_PROJECT_ID` e `GCP_SA_KEY` no GitHub
+4. Faça push para a branch `main` - o deploy será automático!
+
+Veja `.github/workflows/` para mais detalhes sobre os workflows.
 
 ## 📄 Licença
 
