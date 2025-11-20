@@ -18,12 +18,17 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
+            - name: Validate secrets
+              run: |
+                  echo "Setting project to: ${{ secrets.GCP_PROJECT_ID }}"
+                  echo "Workload identity provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}"
+                  echo "Service account: ${{ secrets.GCP_SERVICE_ACCOUNT }}"
+
             - name: Authenticate to GCP (OIDC)
               uses: google-github-actions/auth@v2
               with:
                   workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
                   service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-                  create_credentials_file: true
 
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
