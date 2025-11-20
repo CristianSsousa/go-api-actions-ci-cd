@@ -19,4 +19,3 @@ type ProductRequest struct {
 	Stock       int     `json:"stock"`
 	Category    string  `json:"category"`
 }
-

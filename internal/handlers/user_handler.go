@@ -155,4 +155,3 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		Message: "Usuário removido com sucesso",
 	})
 }
-

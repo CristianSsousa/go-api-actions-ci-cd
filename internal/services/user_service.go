@@ -106,4 +106,3 @@ func (s *UserService) Delete(id int) error {
 	}
 	return s.repo.Delete(id)
 }
-

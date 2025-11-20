@@ -21,9 +21,8 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "API está funcionando corretamente",
 		Data: map[string]string{
-			"status": "healthy",
+			"status":  "healthy",
 			"service": "go-api-actions-ci-cd",
 		},
 	})
 }
-

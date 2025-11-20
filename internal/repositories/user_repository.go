@@ -13,8 +13,8 @@ var (
 
 // UserRepository gerencia os dados de usuários em memória
 type UserRepository struct {
-	mu    sync.RWMutex
-	users []models.User
+	mu     sync.RWMutex
+	users  []models.User
 	nextID int
 }
 
@@ -79,7 +79,7 @@ func (r *UserRepository) GetAll() []models.User {
 func (r *UserRepository) GetByID(id int) (*models.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	for i := range r.users {
 		if r.users[i].ID == id {
 			return &r.users[i], nil
@@ -92,7 +92,7 @@ func (r *UserRepository) GetByID(id int) (*models.User, error) {
 func (r *UserRepository) Create(user models.User) models.User {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	user.ID = r.nextID
 	r.nextID++
 	r.users = append(r.users, user)
@@ -103,7 +103,7 @@ func (r *UserRepository) Create(user models.User) models.User {
 func (r *UserRepository) Update(id int, user models.User) (*models.User, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	for i := range r.users {
 		if r.users[i].ID == id {
 			user.ID = id
@@ -118,7 +118,7 @@ func (r *UserRepository) Update(id int, user models.User) (*models.User, error) 
 func (r *UserRepository) Delete(id int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	for i := range r.users {
 		if r.users[i].ID == id {
 			r.users = append(r.users[:i], r.users[i+1:]...)
@@ -127,4 +127,3 @@ func (r *UserRepository) Delete(id int) error {
 	}
 	return ErrUserNotFound
 }
-

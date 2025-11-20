@@ -84,7 +84,7 @@ func (r *ProductRepository) GetAll() []models.Product {
 func (r *ProductRepository) GetByID(id int) (*models.Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	for i := range r.products {
 		if r.products[i].ID == id {
 			return &r.products[i], nil
@@ -97,7 +97,7 @@ func (r *ProductRepository) GetByID(id int) (*models.Product, error) {
 func (r *ProductRepository) GetByCategory(category string) []models.Product {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	var filtered []models.Product
 	for i := range r.products {
 		if r.products[i].Category == category {
@@ -111,7 +111,7 @@ func (r *ProductRepository) GetByCategory(category string) []models.Product {
 func (r *ProductRepository) Create(product models.Product) models.Product {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	product.ID = r.nextID
 	r.nextID++
 	r.products = append(r.products, product)
@@ -122,7 +122,7 @@ func (r *ProductRepository) Create(product models.Product) models.Product {
 func (r *ProductRepository) Update(id int, product models.Product) (*models.Product, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	for i := range r.products {
 		if r.products[i].ID == id {
 			product.ID = id
@@ -137,7 +137,7 @@ func (r *ProductRepository) Update(id int, product models.Product) (*models.Prod
 func (r *ProductRepository) Delete(id int) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	for i := range r.products {
 		if r.products[i].ID == id {
 			r.products = append(r.products[:i], r.products[i+1:]...)
@@ -146,4 +146,3 @@ func (r *ProductRepository) Delete(id int) error {
 	}
 	return ErrProductNotFound
 }
-

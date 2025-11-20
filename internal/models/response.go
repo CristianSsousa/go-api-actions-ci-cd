@@ -16,4 +16,3 @@ type PaginatedResponse struct {
 	Limit   int         `json:"limit"`
 	Total   int         `json:"total"`
 }
-
