@@ -8,6 +8,7 @@ env:
     REGION: us-central1
     SERVICE_NAME: go-test-api
     INGRESS: all
+    KEEP_IMAGES: 1 # Número de imagens recentes para manter (1 = apenas a última)
 
 jobs:
     build-and-deploy:
@@ -36,3 +37,58 @@ jobs:
                   region: ${{ env.REGION }}
                   allow-unauthenticated: true
                   ingress: ${{ env.INGRESS }}
+
+    clean-up-old-images:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - name: Cleanup Old Images
+              run: |
+                  IMAGE_NAME="gcr.io/usenglish/${{ env.SERVICE_NAME }}"
+                  KEEP=${{ env.KEEP_IMAGES }}
+
+                  echo "Limpando imagens antigas do Container Registry..."
+                  echo "Imagem: $IMAGE_NAME"
+                  echo "Mantendo as últimas $KEEP imagem(s)"
+
+                  # Lista todas as imagens ordenadas por timestamp (mais recente primeiro)
+                  # Usa digest para identificar imagens únicas
+                  IMAGES=$(gcloud container images list-tags "$IMAGE_NAME" \
+                    --sort-by=~TIMESTAMP \
+                    --format='get(digest)' \
+                    --limit=999 2>/dev/null || echo "")
+
+                  if [ -z "$IMAGES" ]; then
+                      echo "Nenhuma imagem encontrada ou erro ao listar."
+                      exit 0
+                  fi
+
+                  # Conta quantas imagens existem
+                  TOTAL=$(echo "$IMAGES" | grep -v '^$' | wc -l | tr -d ' ')
+
+                  if [ "$TOTAL" -le "$KEEP" ]; then
+                      echo "Apenas $TOTAL imagem(s) encontrada(s), nenhuma limpeza necessária."
+                      exit 0
+                  fi
+
+                  # Calcula quantas deletar
+                  TO_DELETE=$((TOTAL - KEEP))
+                  echo "Encontradas $TOTAL imagens. Mantendo as últimas $KEEP, deletando $TO_DELETE..."
+
+                  # Pega as imagens mais antigas (pula as KEEP primeiras)
+                  OLD_IMAGES=$(echo "$IMAGES" | tail -n +$((KEEP + 1)))
+
+                  # Deleta as imagens antigas
+                  DELETED=0
+                  for DIGEST in $OLD_IMAGES; do
+                      if [ -n "$DIGEST" ]; then
+                          echo "Deletando imagem antiga: $IMAGE_NAME@$DIGEST"
+                          if gcloud container images delete "$IMAGE_NAME@$DIGEST" --quiet --force-delete-tags 2>/dev/null; then
+                              DELETED=$((DELETED + 1))
+                          fi
+                      fi
+                  done
+
+                  echo "Limpeza concluída! $DELETED imagem(s) deletada(s)."
