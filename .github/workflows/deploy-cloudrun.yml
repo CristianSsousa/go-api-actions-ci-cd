@@ -6,12 +6,13 @@ on:
 
 env:
     REGION: us-central1
-    SERVICE_NAME: go-test-api
+    SERVICE_NAME: go-api-actions-ci-cd
     INGRESS: all
-    KEEP_IMAGES: 1 # Número de imagens recentes para manter (1 = apenas a última)
+    KEEP_IMAGES: 1
 
 jobs:
     build-and-deploy:
+        environment: production
         runs-on: ubuntu-latest
         permissions:
             contents: read
@@ -23,8 +24,8 @@ jobs:
             - name: Authenticate to GCP (OIDC)
               uses: google-github-actions/auth@v2
               with:
-                  workload_identity_provider: "projects/1037272987699/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-                  service_account: "github-actions-sa@usenglish.iam.gserviceaccount.com"
+                  workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+                  service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
