@@ -12,8 +12,6 @@ env:
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
-        env:
-            IMAGE: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -32,12 +30,13 @@ jobs:
 
             - name: Build and push image to Container Registry
               run: |
-                  gcloud builds submit --tag "${{ env.IMAGE }}"
+                  IMAGE="gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+                  gcloud builds submit --tag "${IMAGE}"
 
             - name: Deploy to Cloud Run
               uses: google-github-actions/deploy-cloudrun@v1
               with:
                   service: ${{ env.SERVICE_NAME }}
-                  image: ${{ env.IMAGE }}
+                  image: gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
                   region: ${{ env.REGION }}
                   allow-unauthenticated: true
