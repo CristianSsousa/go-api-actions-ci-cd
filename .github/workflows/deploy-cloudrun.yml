@@ -6,7 +6,7 @@ on:
 
 env:
     REGION: us-central1
-    SERVICE_NAME: go-api
+    SERVICE_NAME: go-test-api
 
 jobs:
     build-and-deploy:
@@ -31,6 +31,6 @@ jobs:
               uses: google-github-actions/deploy-cloudrun@v2
               with:
                   service: ${{ env.SERVICE_NAME }}
-                  image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+                  source: .
                   region: ${{ env.REGION }}
                   allow-unauthenticated: true
