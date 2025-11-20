@@ -2,7 +2,7 @@
 
 API REST em Go seguindo os princípios de Clean Architecture, utilizando Chi como router HTTP e respostas pré-prontas (mock data).
 
-## 🏗️ Arquiteturas
+## 🏗️ Arquitetura
 
 O projeto segue a Clean Architecture, organizando o código em camadas:
 
