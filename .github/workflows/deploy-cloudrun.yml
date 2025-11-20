@@ -96,25 +96,29 @@ jobs:
 
                   # Deleta as imagens antigas
                   DELETED=0
+                  FAILED=0
                   for IMAGE_URI in $OLD_IMAGES; do
                       if [ -n "$IMAGE_URI" ]; then
                           echo "Deletando imagem antiga: $IMAGE_URI"
-                          # Para Artifact Registry, o comando precisa do formato correto
-                          # Tenta deletar e captura o erro para debug
-                          # Captura o output e exit code
-                          OUTPUT=$(gcloud artifacts docker images delete "$IMAGE_URI" --quiet 2>&1)
+                          
+                          # Para Artifact Registry, o comando precisa do formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
+                          # Tenta deletar SEM --quiet primeiro para ver o erro completo
+                          set +e  # Não falhar imediatamente em caso de erro
+                          OUTPUT=$(gcloud artifacts docker images delete "$IMAGE_URI" 2>&1)
                           EXIT_CODE=$?
+                          set -e  # Reativar fail on error
                           
                           if [ $EXIT_CODE -eq 0 ]; then
                               DELETED=$((DELETED + 1))
                               echo "✓ Imagem deletada com sucesso"
                           else
+                              FAILED=$((FAILED + 1))
                               echo "✗ Erro ao deletar (código: $EXIT_CODE)"
-                              echo "  Mensagem de erro completa:"
+                              echo "  Mensagem de erro:"
                               echo "$OUTPUT" | sed 's/^/    /'
                               
                               # Verifica se é erro de permissão
-                              if echo "$OUTPUT" | grep -qi "permission\|denied\|forbidden"; then
+                              if echo "$OUTPUT" | grep -qiE "permission|denied|forbidden|403"; then
                                   echo ""
                                   echo "  ⚠️  ERRO DE PERMISSÃO DETECTADO!"
                                   echo "  A service account precisa da role: roles/artifactregistry.writer"
@@ -123,25 +127,14 @@ jobs:
                                   echo "      --member='serviceAccount:github-actions-sa@usenglish.iam.gserviceaccount.com' \\"
                                   echo "      --role='roles/artifactregistry.writer'"
                               fi
-                              
-                              # Tenta método alternativo: usar apenas o digest com o nome base
-                              DIGEST=$(echo "$IMAGE_URI" | grep -o 'sha256:[a-f0-9]*' || echo "")
-                              if [ -n "$DIGEST" ]; then
-                                  ALT_URI="$IMAGE_NAME@$DIGEST"
-                                  echo ""
-                                  echo "  Tentando método alternativo: $ALT_URI"
-                                  ALT_OUTPUT=$(gcloud artifacts docker images delete "$ALT_URI" --quiet 2>&1)
-                                  ALT_EXIT=$?
-                                  if [ $ALT_EXIT -eq 0 ]; then
-                                      DELETED=$((DELETED + 1))
-                                      echo "  ✓ Imagem deletada usando método alternativo"
-                                  else
-                                      echo "  ✗ Método alternativo falhou (código: $ALT_EXIT)"
-                                      echo "  Mensagem: $ALT_OUTPUT" | sed 's/^/    /'
-                                  fi
-                              fi
                           fi
                       fi
                   done
+
+                  # Se houve falhas mas não é erro crítico, não falha o workflow
+                  if [ $FAILED -gt 0 ] && [ $DELETED -eq 0 ]; then
+                      echo ""
+                      echo "⚠️  Nenhuma imagem foi deletada. Verifique as permissões acima."
+                  fi
 
                   echo "Limpeza concluída! $DELETED imagem(s) deletada(s)."
