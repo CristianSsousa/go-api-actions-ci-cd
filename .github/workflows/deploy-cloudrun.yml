@@ -27,12 +27,8 @@ jobs:
 
             - name: Setup gcloud SDK
               uses: google-github-actions/setup-gcloud@v2
-
-            - name: Set GCP Project
-              run: |
-                  echo "Setting project to: ${{ secrets.GCP_PROJECT_ID }}"
-                  gcloud config set project "${{ secrets.GCP_PROJECT_ID }}"
-                  gcloud config get-value project
+              with:
+                  project_id: ${{ secrets.GCP_PROJECT_ID }}
 
             - name: Build and push image to Container Registry
               run: |
