@@ -102,9 +102,9 @@ jobs:
                           echo "Deletando imagem antiga: $IMAGE_URI"
                           
                           # Para Artifact Registry, o comando precisa do formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
-                          # Tenta deletar SEM --quiet primeiro para ver o erro completo
+                          # Usa --quiet para evitar prompt interativo
                           set +e  # Não falhar imediatamente em caso de erro
-                          OUTPUT=$(gcloud artifacts docker images delete "$IMAGE_URI" 2>&1)
+                          OUTPUT=$(gcloud artifacts docker images delete "$IMAGE_URI" --quiet 2>&1)
                           EXIT_CODE=$?
                           set -e  # Reativar fail on error
                           
