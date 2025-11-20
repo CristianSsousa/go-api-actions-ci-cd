@@ -39,25 +39,38 @@ jobs:
                   ingress: ${{ env.INGRESS }}
 
     clean-up-old-images:
+        needs: build-and-deploy
         runs-on: ubuntu-latest
         permissions:
             contents: read
             id-token: write
         steps:
+            - name: Authenticate to GCP (OIDC)
+              uses: google-github-actions/auth@v2
+              with:
+                  workload_identity_provider: "projects/1037272987699/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+                  service_account: "github-actions-sa@usenglish.iam.gserviceaccount.com"
+
+            - name: Setup gcloud SDK
+              uses: google-github-actions/setup-gcloud@v2
+
             - name: Cleanup Old Images
               run: |
-                  IMAGE_NAME="gcr.io/usenglish/${{ env.SERVICE_NAME }}"
+                  # Artifact Registry path: LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE
+                  REPOSITORY="${{ env.REGION }}-docker.pkg.dev/usenglish/cloud-run-source-deploy"
+                  IMAGE_NAME="$REPOSITORY/${{ env.SERVICE_NAME }}"
                   KEEP=${{ env.KEEP_IMAGES }}
 
-                  echo "Limpando imagens antigas do Container Registry..."
+                  echo "Limpando imagens antigas do Artifact Registry..."
+                  echo "Repositório: $REPOSITORY"
                   echo "Imagem: $IMAGE_NAME"
                   echo "Mantendo as últimas $KEEP imagem(s)"
 
-                  # Lista todas as imagens ordenadas por timestamp (mais recente primeiro)
-                  # Usa digest para identificar imagens únicas
-                  IMAGES=$(gcloud container images list-tags "$IMAGE_NAME" \
-                    --sort-by=~TIMESTAMP \
-                    --format='get(digest)' \
+                  # Lista todas as imagens ordenadas por data de criação (mais recente primeiro)
+                  # Formato: LOCATION-docker.pkg.dev/PROJECT/REPO/IMAGE@sha256:DIGEST
+                  IMAGES=$(gcloud artifacts docker images list "$IMAGE_NAME" \
+                    --sort-by=~CREATE_TIME \
+                    --format='value(package)' \
                     --limit=999 2>/dev/null || echo "")
 
                   if [ -z "$IMAGES" ]; then
@@ -82,10 +95,11 @@ jobs:
 
                   # Deleta as imagens antigas
                   DELETED=0
-                  for DIGEST in $OLD_IMAGES; do
-                      if [ -n "$DIGEST" ]; then
-                          echo "Deletando imagem antiga: $IMAGE_NAME@$DIGEST"
-                          if gcloud container images delete "$IMAGE_NAME@$DIGEST" --quiet --force-delete-tags 2>/dev/null; then
+                  for IMAGE in $OLD_IMAGES; do
+                      if [ -n "$IMAGE" ]; then
+                          echo "Deletando imagem antiga: $IMAGE"
+                          # Para Artifact Registry, usa gcloud artifacts
+                          if gcloud artifacts docker images delete "$IMAGE" --quiet 2>/dev/null; then
                               DELETED=$((DELETED + 1))
                           fi
                       fi
